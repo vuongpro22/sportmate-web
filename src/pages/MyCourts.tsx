@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useModal } from '@/contexts/ModalContext';
 import {
   fetchMyCourts,
   deleteCourt,
@@ -22,6 +23,7 @@ const DATE_OPTIONS = getUpcomingDateKeys(7);
 export default function MyCourts() {
   const navigate = useNavigate();
   const { user, role } = useAuth();
+  const { alert, confirm } = useModal();
 
   // Navigation state: 'courts' | 'bookings' | 'stats'
   const [activeTab, setActiveTab] = useState<'courts' | 'bookings' | 'stats'>('courts');
@@ -128,36 +130,36 @@ export default function MyCourts() {
         prev.map((c) => (c.id === court.id ? { ...c, visibilityStatus: newStatus } : c))
       );
     } catch (err) {
-      alert('Không cập nhật được trạng thái hiển thị sân.');
+      await alert('Không cập nhật được trạng thái hiển thị sân.', 'Lỗi', 'error');
     }
   };
 
   const handleDeleteCourt = async (courtId: string) => {
     if (!user?.id) return;
-    if (window.confirm('Bạn có chắc chắn muốn xóa sân này khỏi hệ thống không? Hành động này không thể hoàn tác.')) {
+    if (await confirm('Bạn có chắc chắn muốn xóa sân này khỏi hệ thống không? Hành động này không thể hoàn tác.', 'Xóa Sân Bãi', 'warning')) {
       try {
         await deleteCourt(courtId, user.id);
         setCourts((prev) => prev.filter((c) => c.id !== courtId));
-        alert('Xóa sân thành công!');
+        await alert('Xóa sân thành công!', 'Thành công', 'success');
       } catch (err) {
-        alert(err instanceof Error ? err.message : 'Không xóa được sân bãi.');
+        await alert(err instanceof Error ? err.message : 'Không xóa được sân bãi.', 'Lỗi', 'error');
       }
     }
   };
 
   const handleCancelBooking = async (bookingId: string) => {
     if (!user?.id) return;
-    if (window.confirm('Bạn có chắc chắn muốn hủy đơn đặt sân này không? Người thuê sân sẽ nhận được thông báo.')) {
+    if (await confirm('Bạn có chắc chắn muốn hủy đơn đặt sân này không? Người thuê sân sẽ nhận được thông báo.', 'Hủy Đặt Sân', 'warning')) {
       try {
         await cancelCourtBooking(bookingId, user.id);
-        alert('Đã hủy lịch đặt sân thành công.');
+        await alert('Đã hủy lịch đặt sân thành công.', 'Thành công', 'success');
         if (activeTab === 'bookings') {
           await loadBookings();
         } else if (activeTab === 'stats') {
           await loadStats();
         }
       } catch (err) {
-        alert(err instanceof Error ? err.message : 'Hủy lịch đặt sân thất bại.');
+        await alert(err instanceof Error ? err.message : 'Hủy lịch đặt sân thất bại.', 'Lỗi', 'error');
       }
     }
   };

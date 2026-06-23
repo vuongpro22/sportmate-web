@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useModal } from '@/contexts/ModalContext';
 import {
   fetchAdminStats,
   fetchAdminUsers,
@@ -27,6 +28,7 @@ import { LayoutGrid, Users, Trophy, Shield, ShieldAlert, Check, X, Ban, Loader2,
 export default function Admin() {
   const navigate = useNavigate();
   const { user, role } = useAuth();
+  const { alert, confirm } = useModal();
 
   // Active admin sub-tab: 'courts' | 'users' | 'reports'
   const [activeTab, setActiveTab] = useState<'courts' | 'users' | 'reports'>('courts');
@@ -114,14 +116,14 @@ export default function Admin() {
 
   // Court Review Actions
   const handleApproveCourt = async (courtId: string) => {
-    if (window.confirm('Bạn có chắc chắn duyệt sân này không? Trạng thái sẽ chuyển thành Hoạt động.')) {
+    if (await confirm('Bạn có chắc chắn duyệt sân này không? Trạng thái sẽ chuyển thành Hoạt động.', 'Duyệt Sân Bãi', 'warning')) {
       try {
         await approveCourtAdmin(courtId);
-        alert('Duyệt sân thành công!');
+        await alert('Duyệt sân thành công!', 'Thành công', 'success');
         await loadCourts();
         await loadStats();
       } catch (err) {
-        alert('Duyệt sân thất bại.');
+        await alert('Duyệt sân thất bại.', 'Lỗi', 'error');
       }
     }
   };
@@ -137,20 +139,20 @@ export default function Admin() {
     if (!rejectTargetId) return;
     const reasonTrim = rejectReason.trim();
     if (reasonTrim.length < 5) {
-      alert('Vui lòng nhập lý do từ chối tối thiểu 5 ký tự.');
+      await alert('Vui lòng nhập lý do từ chối tối thiểu 5 ký tự.', 'Lưu ý', 'warning');
       return;
     }
 
     setRejectBusy(true);
     try {
       await rejectCourtAdmin(rejectTargetId, reasonTrim);
-      alert('Đã từ chối duyệt sân bãi.');
+      await alert('Đã từ chối duyệt sân bãi.', 'Đã từ chối', 'info');
       setRejectModalOpen(false);
       setRejectTargetId(null);
       await loadCourts();
       await loadStats();
     } catch (err) {
-      alert('Từ chối duyệt sân thất bại.');
+      await alert('Từ chối duyệt sân thất bại.', 'Lỗi', 'error');
     } finally {
       setRejectBusy(false);
     }
@@ -159,53 +161,55 @@ export default function Admin() {
   // User Administration Actions
   const handleToggleBanUser = async (u: AdminUser) => {
     const isBanned = !u.isBanned;
-    if (window.confirm(`Bạn có chắc chắn muốn ${isBanned ? 'BAN' : 'UNBAN'} người dùng ${u.name}?`)) {
+    if (await confirm(`Bạn có chắc chắn muốn ${isBanned ? 'BAN' : 'UNBAN'} người dùng ${u.name}?`, 'Xác nhận', 'warning')) {
       try {
         await setAdminUserBan(u.id, isBanned);
         setUsers((prev) =>
           prev.map((usr) => (usr.id === u.id ? { ...usr, isBanned } : usr))
         );
+        await alert(`${isBanned ? 'Đã khóa' : 'Đã mở khóa'} tài khoản thành công!`, 'Thành công', 'success');
       } catch (err) {
-        alert('Cập nhật trạng thái Ban thất bại.');
+        await alert('Cập nhật trạng thái Ban thất bại.', 'Lỗi', 'error');
       }
     }
   };
 
   const handleToggleUserRole = async (u: AdminUser) => {
     const newRole = u.role === 'admin' ? 'user' : 'admin';
-    if (window.confirm(`Bạn có chắc chắn muốn chuyển vai trò ${u.name} thành ${newRole.toUpperCase()}?`)) {
+    if (await confirm(`Bạn có chắc chắn muốn chuyển vai trò ${u.name} thành ${newRole.toUpperCase()}?`, 'Xác nhận thay đổi', 'warning')) {
       try {
         await updateAdminUserRole(u.id, newRole);
         setUsers((prev) =>
           prev.map((usr) => (usr.id === u.id ? { ...usr, role: newRole } : usr))
         );
+        await alert('Cập nhật vai trò thành công!', 'Thành công', 'success');
       } catch (err) {
-        alert('Cập nhật role thất bại.');
+        await alert('Cập nhật vai trò thất bại.', 'Lỗi', 'error');
       }
     }
   };
 
   // User Report Actions
   const handleWarnReport = async (reportId: string) => {
-    if (window.confirm('Gửi cảnh báo tới người dùng này?')) {
+    if (await confirm('Gửi cảnh báo tới người dùng này?', 'Xác nhận gửi', 'warning')) {
       try {
         await sendAdminReportWarning(reportId);
-        alert('Cảnh báo đã được gửi.');
+        await alert('Cảnh báo đã được gửi.', 'Thành công', 'success');
         await loadReports();
       } catch (err) {
-        alert('Gửi cảnh báo thất bại.');
+        await alert('Gửi cảnh báo thất bại.', 'Lỗi', 'error');
       }
     }
   };
 
   const handleBanReport = async (reportId: string) => {
-    if (window.confirm('Bạn có chắc muốn BAN người dùng bị cáo buộc thông qua report này?')) {
+    if (await confirm('Bạn có chắc muốn BAN người dùng bị cáo buộc thông qua report này?', 'Xác nhận khóa tài khoản', 'warning')) {
       try {
         await banUserByAdminReport(reportId);
-        alert('Đã BAN tài khoản thành công.');
+        await alert('Đã BAN tài khoản thành công.', 'Thành công', 'success');
         await loadReports();
       } catch (err) {
-        alert('Thao tác BAN thất bại.');
+        await alert('Thao tác BAN thất bại.', 'Lỗi', 'error');
       }
     }
   };

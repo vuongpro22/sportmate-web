@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useModal } from '@/contexts/ModalContext';
 import { fetchMatchById, updateMatch, type ApiMatch, type ApiMatchParticipant } from '@/lib/matchApi';
 import { getApiBaseUrl } from '@/lib/apiBase';
 import {
@@ -38,6 +39,7 @@ export default function CreateMatch() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const { alert } = useModal();
 
   const editId = searchParams.get('editId');
   const isEditMode = Boolean(editId);
@@ -263,9 +265,9 @@ export default function CreateMatch() {
       setLocation(`${court.name} - ${court.address}`);
       setShowCourtBrowser(false);
       setExpandedCourtId(null);
-      alert('Đã đặt sân thành công và tự động điền địa chỉ!');
+      await alert('Đã đặt sân thành công và tự động điền địa chỉ!', 'Đặt Sân Bãi', 'success');
     } catch (err: any) {
-      alert(err instanceof Error ? err.message : 'Đặt sân thất bại, vui lòng thử lại.');
+      await alert(err instanceof Error ? err.message : 'Đặt sân thất bại, vui lòng thử lại.', 'Lỗi', 'error');
     } finally {
       setBookingLoading(false);
     }
@@ -330,7 +332,7 @@ export default function CreateMatch() {
           description: description.trim(),
           rules: rules.trim(),
         });
-        alert('Cập nhật trận đấu thành công!');
+        await alert('Cập nhật trận đấu thành công!', 'Thành công', 'success');
         navigate(`/matches/${editId}`);
       } else {
         const base = getApiBaseUrl();
@@ -356,7 +358,7 @@ export default function CreateMatch() {
           setSubmitting(false);
           return;
         }
-        alert('Tạo trận đấu thành công!');
+        await alert('Tạo trận đấu thành công!', 'Thành công', 'success');
         navigate('/matches');
       }
     } catch (err) {
@@ -379,7 +381,7 @@ export default function CreateMatch() {
         status: 'finished',
         winners: winnerIds,
       });
-      alert('Đã kết thúc trận đấu và ghi nhận kết quả.');
+      await alert('Đã kết thúc trận đấu và ghi nhận kết quả.', 'Kết Thúc Trận Đấu', 'success');
       navigate(`/matches/${editId}`);
     } catch (err) {
       setError('Không thể cập nhật kết quả.');
@@ -401,7 +403,7 @@ export default function CreateMatch() {
         status: 'cancelled',
         cancelReason: cancelReason.trim(),
       });
-      alert('Đã hủy trận đấu thành công.');
+      await alert('Đã hủy trận đấu thành công.', 'Hủy Trận Đấu', 'info');
       navigate(`/matches/${editId}`);
     } catch (err) {
       setError('Không thể hủy trận đấu.');
@@ -453,35 +455,39 @@ export default function CreateMatch() {
       )}
 
       {/* Admin/Result updates (Edit Mode only) */}
-      {isEditMode && matchStatus === 'active' && (
+      {isEditMode && (matchStatus === 'active' || matchStatus === 'finished') && (
         <div className="bg-darkCard border border-primary/20 rounded-3xl p-6 space-y-4 shadow-xl">
           <h3 className="text-md font-bold text-white flex items-center gap-2">
             🏆 Cập nhật kết quả / Hủy trận
           </h3>
           <p className="text-xs text-gray-400">
-            Bạn có thể đóng trận đấu và lựa chọn người thắng cuộc hoặc hủy trận đấu nếu có sự cố.
+            {matchStatus === 'finished'
+              ? 'Trận đấu đã kết thúc. Bạn vẫn có thể cập nhật hoặc thay đổi người thắng cuộc dưới đây:'
+              : 'Bạn có thể đóng trận đấu và lựa chọn người thắng cuộc hoặc hủy trận đấu nếu có sự cố.'}
           </p>
 
-          <div className="flex gap-4">
-            <button
-              onClick={() => setActiveAction('finish')}
-              className={`flex-1 py-3 rounded-2xl text-xs font-bold transition-all duration-300 ${
-                activeAction === 'finish' ? 'bg-primary text-white' : 'border border-darkBorder text-gray-400 hover:text-white'
-              }`}
-            >
-              Kết thúc trận đấu
-            </button>
-            <button
-              onClick={() => setActiveAction('cancel')}
-              className={`flex-1 py-3 rounded-2xl text-xs font-bold transition-all duration-300 ${
-                activeAction === 'cancel' ? 'bg-red-500 text-white' : 'border border-darkBorder text-gray-400 hover:text-white'
-              }`}
-            >
-              Hủy trận đấu
-            </button>
-          </div>
+          {matchStatus === 'active' && (
+            <div className="flex gap-4">
+              <button
+                onClick={() => setActiveAction('finish')}
+                className={`flex-1 py-3 rounded-2xl text-xs font-bold transition-all duration-300 ${
+                  activeAction === 'finish' ? 'bg-primary text-white' : 'border border-darkBorder text-gray-400 hover:text-white'
+                }`}
+              >
+                Kết thúc trận đấu
+              </button>
+              <button
+                onClick={() => setActiveAction('cancel')}
+                className={`flex-1 py-3 rounded-2xl text-xs font-bold transition-all duration-300 ${
+                  activeAction === 'cancel' ? 'bg-red-500 text-white' : 'border border-darkBorder text-gray-400 hover:text-white'
+                }`}
+              >
+                Hủy trận đấu
+              </button>
+            </div>
+          )}
 
-          {activeAction === 'finish' && (
+          {(activeAction === 'finish' || matchStatus === 'finished') && (
             <div className="border-t border-darkBorder pt-4 space-y-4">
               <span className="block text-xs font-bold text-white">Chọn người thắng cuộc:</span>
               {participants.length === 0 ? (
@@ -516,12 +522,12 @@ export default function CreateMatch() {
                 disabled={resultSubmitting}
                 className="bg-primary hover:bg-primary-hover text-white font-bold text-xs px-6 py-3 rounded-xl transition-colors duration-300 disabled:opacity-50"
               >
-                {resultSubmitting ? 'Đang cập nhật...' : 'Xác nhận kết quả'}
+                {resultSubmitting ? 'Đang cập nhật...' : (matchStatus === 'finished' ? 'Cập nhật người thắng' : 'Xác nhận kết quả')}
               </button>
             </div>
           )}
 
-          {activeAction === 'cancel' && (
+          {matchStatus === 'active' && activeAction === 'cancel' && (
             <div className="border-t border-darkBorder pt-4 space-y-4">
               <span className="block text-xs font-bold text-white">Lý do hủy trận:</span>
               <textarea

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useModal } from '@/contexts/ModalContext';
 import {
   fetchMatchById,
   mapApiMatchToDetail,
@@ -17,6 +18,7 @@ export default function MatchDetailScreen() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, refreshUser } = useAuth();
+  const { alert, confirm } = useModal();
 
   // Page States
   const [match, setMatch] = useState<MatchDetail | null>(null);
@@ -71,19 +73,19 @@ export default function MatchDetailScreen() {
 
   const handleToggleJoin = async () => {
     if (!user?.id || !match) {
-      alert('Vui lòng đăng nhập để tham gia.');
+      await alert('Vui lòng đăng nhập để tham gia.', 'Yêu cầu đăng nhập', 'info');
       return;
     }
 
     if (matchStatus !== 'active' || displayStatus.key === 'finished') {
-      alert('Trận đấu đã kết thúc hoặc đã bị hủy.');
+      await alert('Trận đấu đã kết thúc hoặc đã bị hủy.', 'Thông báo', 'warning');
       return;
     }
 
     setJoinBusy(true);
     try {
       if (isJoined) {
-        if (window.confirm(`Bạn có chắc chắn muốn hủy tham gia trận đấu "${match.title}" không?`)) {
+        if (await confirm(`Bạn có chắc chắn muốn hủy tham gia trận đấu "${match.title}" không?`, 'Hủy Tham Gia', 'warning')) {
           const raw = await leaveMatch(match.id, user.id);
           setMatch(mapApiMatchToDetail(raw));
           void refreshUser();
@@ -92,14 +94,14 @@ export default function MatchDetailScreen() {
         // Run scheduling overlap check
         const check = await checkJoinMatch(match.id, user.id);
         if (!check.allow && check.reason === 'overlap') {
-          alert('Không thể tham gia! Bạn đã có trận đấu khác trùng khung giờ trong ngày này.');
+          await alert('Không thể tham gia! Bạn đã có trận đấu khác trùng khung giờ trong ngày này.', 'Trùng lịch thi đấu', 'error');
           setJoinBusy(false);
           return;
         }
 
         let proceed = true;
         if (check.reason === 'hasOtherMatch') {
-          proceed = window.confirm('Hôm nay bạn đang có một trận đấu khác (không trùng giờ). Bạn vẫn muốn đăng ký tham gia trận này chứ?');
+          proceed = await confirm('Hôm nay bạn đang có một trận đấu khác (không trùng giờ). Bạn vẫn muốn đăng ký tham gia trận này chứ?', 'Trùng lịch ngày', 'warning');
         }
 
         if (proceed) {
@@ -109,7 +111,7 @@ export default function MatchDetailScreen() {
         }
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Thao tác tham gia/rời trận thất bại');
+      await alert(err instanceof Error ? err.message : 'Thao tác tham gia/rời trận thất bại', 'Lỗi', 'error');
     } finally {
       setJoinBusy(false);
     }
@@ -149,14 +151,14 @@ export default function MatchDetailScreen() {
     }
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
     if (!match) return;
     const text = `${match.title}\nĐịa điểm: ${match.location}\nThời gian: ${match.time} ngày ${new Date(match.date).toLocaleDateString('vi-VN')}`;
     if (navigator.share) {
       navigator.share({ title: match.title, text }).catch(() => {});
     } else {
       navigator.clipboard.writeText(text);
-      alert('Đã sao chép thông tin trận đấu vào clipboard!');
+      await alert('Đã sao chép thông tin trận đấu vào clipboard!', 'Chia Sẻ Trận Đấu', 'success');
     }
   };
 
@@ -369,7 +371,7 @@ export default function MatchDetailScreen() {
                       return <span key={i} className="text-base leading-none">{active ? '★' : '☆'}</span>;
                     })}
                   </div>
-                  <span className="text-gray-400 ml-1 text-xs">Độ uy tiên: {match.organizer.rating.toFixed(1)} / 5.0</span>
+                  <span className="text-gray-400 ml-1 text-xs">Độ uy tín: {match.organizer.rating.toFixed(1)} / 5.0</span>
                 </div>
               </div>
             </div>
@@ -408,12 +410,6 @@ export default function MatchDetailScreen() {
               ) : (
                 'Tham gia ngay'
               )}
-            </button>
-            <button
-              disabled
-              className="w-full bg-transparent border border-[#ff4d4f]/30 hover:bg-[#ff4d4f]/5 text-white font-bold py-3 rounded-2xl text-xs flex items-center justify-center cursor-not-allowed transition-all"
-            >
-              Chờ duyệt rà
             </button>
           </div>
         </div>

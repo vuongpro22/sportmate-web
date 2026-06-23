@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth, type SuggestedPartner } from '@/contexts/AuthContext';
 import { fetchMatches, type ApiMatch } from '@/lib/matchApi';
 import { computeDisplayStatus } from '@/lib/matchStatus';
-import { Search, MapPin, Calendar, Users, Trophy, Plus, ArrowRight, User, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, MapPin, Calendar, Users, Trophy, Plus, ArrowRight, User, Loader2, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 
 const SPORT_EMOJI: Record<string, string> = {
   Football: "⚽",
@@ -50,7 +50,7 @@ export default function Home() {
       // 1. Suggested Partners
       try {
         setPartnersLoading(true);
-        const res = await fetchSuggestedPartners({ limit: 10 });
+        const res = await fetchSuggestedPartners({ limit: 1000 });
         setPartners(res.partners);
       } catch (err) {
         setPartnersError('Không thể tải gợi ý partner');
@@ -126,7 +126,7 @@ export default function Home() {
         <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-white/5 blur-[100px] pointer-events-none" />
         <div className="space-y-4 max-w-2xl relative z-10">
           <span className="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-black/30 border border-white/10 text-white/95 shadow-sm">
-            Chào mừng trở lại, {user?.name || user?.username}!
+            {user ? `Chào mừng trở lại, ${user.name || user.username}!` : 'Chào mừng đến với SportMate!'}
           </span>
           <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
             Cùng SportMate kết nối đam mê thể thao
@@ -167,10 +167,10 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Card 2: Tuần tới */}
+        {/* Card 2: Cộng đồng */}
         <div className="bg-darkCard border border-darkBorder rounded-3xl p-6 flex justify-between items-center shadow-md relative overflow-hidden group">
           <div className="space-y-1">
-            <span className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">TUẦN TỚI</span>
+            <span className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">CỘNG ĐỒNG</span>
             <span className="block text-3xl font-black text-white">{partners.length}</span>
             <span className="block text-xs text-gray-400">Đồng đội gần đây</span>
           </div>
@@ -298,7 +298,7 @@ export default function Home() {
             <div className="bg-darkCard border border-darkBorder rounded-3xl p-6 shadow-lg flex flex-col items-center relative overflow-hidden select-none">
               {/* Card Title */}
               <div className="w-full flex items-center gap-2 mb-4 text-xs font-bold text-white uppercase tracking-wider justify-start">
-                <span>🔥 Đội của tôi ý</span>
+                <span>🔥 Đồng đội của bạn ở đây</span>
               </div>
 
               {/* Avatar circle with letter T (or image if available) */}
@@ -368,7 +368,7 @@ export default function Home() {
                   <ChevronLeft className="h-4 w-4" />
                 </button>
                 <div className="flex items-center gap-1.5">
-                  {partners.slice(0, 5).map((_, idx) => (
+                  {partners.map((_, idx) => (
                     <span
                       key={`dot-${idx}`}
                       onClick={() => setPartnerIndex(idx)}
@@ -390,6 +390,7 @@ export default function Home() {
           )}
         </div>
       </div>
+
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useModal } from '@/contexts/ModalContext';
 import {
   createCourt,
   fetchCourtById,
@@ -18,6 +19,7 @@ export default function CreateCourt() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { role, user } = useAuth();
+  const { alert } = useModal();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const editId = searchParams.get('editId');
@@ -38,6 +40,48 @@ export default function CreateCourt() {
   const [description, setDescription] = useState('');
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [selectedImages, setSelectedImages] = useState<CourtImageAsset[]>([]);
+
+  // Time Slot Pricing
+  const [timeSlotPrices, setTimeSlotPrices] = useState<{ startTime: string; endTime: string; price: number }[]>([]);
+  const [newSlotStart, setNewSlotStart] = useState('17:00');
+  const [newSlotEnd, setNewSlotEnd] = useState('22:00');
+  const [newSlotPrice, setNewSlotPrice] = useState('');
+
+  const TIME_OPTIONS = useMemo(() => {
+    const options = [];
+    for (let h = 0; h < 24; h++) {
+      const hh = String(h).padStart(2, '0');
+      options.push(`${hh}:00`);
+      options.push(`${hh}:30`);
+    }
+    return options;
+  }, []);
+
+  const handleAddSlotPrice = () => {
+    if (!newSlotStart || !newSlotEnd || !newSlotPrice.trim()) {
+      void alert('Vui lòng chọn khung giờ và nhập giá thuê.', 'Thiếu thông tin');
+      return;
+    }
+    const priceNum = Number(newSlotPrice.trim());
+    if (!Number.isFinite(priceNum) || priceNum < 0) {
+      void alert('Giá thuê không hợp lệ.', 'Sai định dạng');
+      return;
+    }
+    if (newSlotStart >= newSlotEnd) {
+      void alert('Giờ bắt đầu phải nhỏ hơn giờ kết thúc.', 'Sai khung giờ');
+      return;
+    }
+    if (timeSlotPrices.some(r => r.startTime === newSlotStart && r.endTime === newSlotEnd)) {
+      void alert('Khung giờ này đã tồn tại.', 'Trùng lặp');
+      return;
+    }
+    setTimeSlotPrices(prev => [...prev, { startTime: newSlotStart, endTime: newSlotEnd, price: priceNum }]);
+    setNewSlotPrice('');
+  };
+
+  const handleRemoveSlotPrice = (index: number) => {
+    setTimeSlotPrices(prev => prev.filter((_, i) => i !== index));
+  };
 
   useEffect(() => {
     if (user?.phone && !isEditMode) {
@@ -72,6 +116,7 @@ export default function CreateCourt() {
         setAmenitiesText(court.amenities.join(', '));
         setDescription(court.description || '');
         setExistingImages(court.images || []);
+        setTimeSlotPrices(court.timeSlotPrices ?? []);
       } catch (err) {
         setError('Không tải được thông tin sân.');
       } finally {
@@ -149,6 +194,7 @@ export default function CreateCourt() {
         amenities,
         description: description.trim(),
         images: existingImages,
+        timeSlotPrices,
       };
 
       let savedCourt = isEditMode && editId
@@ -161,7 +207,7 @@ export default function CreateCourt() {
 
       setSelectedImages([]);
       setExistingImages(savedCourt.images);
-      alert(isEditMode ? 'Cập nhật sân thành công!' : 'Đăng sân thành công!');
+      await alert(isEditMode ? 'Cập nhật sân thành công!' : 'Đăng sân thành công!', 'Thành công', 'success');
       navigate('/courts/my-courts');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Không lưu được thông tin sân');
@@ -288,6 +334,85 @@ export default function CreateCourt() {
                 onChange={(e) => setContactPhone(e.target.value)}
                 className="w-full bg-darkBg border border-darkBorder hover:border-gray-700 focus:border-primary rounded-2xl py-3 px-4 text-xs text-white focus:outline-none transition-all duration-300"
               />
+            </div>
+          </div>
+        </div>
+
+        {/* Time Slot Pricing section */}
+        <div className="bg-darkCard border border-darkBorder rounded-3xl p-6 md:p-8 space-y-5 shadow-xl">
+          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Thiết lập giá theo khung giờ</h3>
+          <p className="text-[11px] text-gray-500">Giúp tăng giá vào giờ cao điểm (ví dụ: 17:00 - 22:00) hoặc giảm giá giờ thấp điểm.</p>
+
+          {timeSlotPrices.length > 0 ? (
+            <div className="space-y-2.5">
+              {timeSlotPrices.map((rule, idx) => (
+                <div key={idx} className="flex justify-between items-center bg-darkBg border border-darkBorder/60 rounded-2xl p-4 text-xs">
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-white">⏱ {rule.startTime} - {rule.endTime}</span>
+                    <span className="text-primary font-semibold">{rule.price.toLocaleString('vi-VN')} VNĐ/h</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveSlotPrice(idx)}
+                    className="text-red-400 hover:text-red-300 font-bold bg-transparent border-0 cursor-pointer"
+                  >
+                    Xóa
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500 italic">Chưa thiết lập giá theo khung giờ. Sân sẽ áp dụng giá thuê theo giờ mặc định.</p>
+          )}
+
+          {/* Form to add new rule */}
+          <div className="border-t border-darkBorder/60 pt-4 space-y-4">
+            <h4 className="text-xs font-bold text-white">Thêm khung giờ mới</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-gray-400 font-semibold">Giờ bắt đầu</label>
+                <select
+                  value={newSlotStart}
+                  onChange={(e) => setNewSlotStart(e.target.value)}
+                  className="w-full bg-[#18181b] border border-[#242427] focus:border-primary rounded-xl py-2.5 px-3 text-xs text-white focus:outline-none cursor-pointer"
+                >
+                  {TIME_OPTIONS.map(t => (
+                    <option key={t} value={t} className="bg-darkCard text-white">{t}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-gray-400 font-semibold">Giờ kết thúc</label>
+                <select
+                  value={newSlotEnd}
+                  onChange={(e) => setNewSlotEnd(e.target.value)}
+                  className="w-full bg-[#18181b] border border-[#242427] focus:border-primary rounded-xl py-2.5 px-3 text-xs text-white focus:outline-none cursor-pointer"
+                >
+                  {TIME_OPTIONS.map(t => (
+                    <option key={t} value={t} className="bg-darkCard text-white">{t}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-gray-400 font-semibold">Giá thuê (VNĐ/h)</label>
+                <input
+                  type="text"
+                  placeholder="VD: 350000"
+                  value={newSlotPrice}
+                  onChange={(e) => setNewSlotPrice(e.target.value.replace(/[^\d]/g, ''))}
+                  className="w-full bg-[#18181b] border border-[#242427] focus:border-primary rounded-xl py-2.5 px-3 text-xs text-white focus:outline-none"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAddSlotPrice}
+                className="bg-primary hover:bg-primary-hover px-4 py-3 rounded-xl text-xs font-bold text-white transition-colors cursor-pointer border-0"
+              >
+                Thêm
+              </button>
             </div>
           </div>
         </div>

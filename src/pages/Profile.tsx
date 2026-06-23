@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useModal } from '@/contexts/ModalContext';
 import { fetchUserById, toggleFavorite, resolveAvatarUrl, type ApiUser } from '@/lib/userApi';
 import { getApiBaseUrl } from '@/lib/apiBase';
 import {
@@ -8,12 +9,13 @@ import {
   cancelCourtBooking,
   type ApiCourtBooking,
 } from '@/lib/courtApi';
-import { MapPin, Mail, Phone, Trophy, Calendar, Sparkles, MessageSquare, Heart, Edit, Check, Camera, Plus, Trash2, Loader2, AlertCircle, Clock, ArrowLeft, Share2, TrendingUp, ChevronRight, Users } from 'lucide-react';
+import { MapPin, Mail, Phone, Trophy, Calendar, Sparkles, MessageSquare, Heart, Edit, Check, Camera, Plus, Trash2, Loader2, AlertCircle, Clock, ArrowLeft, Share2, TrendingUp, ChevronRight, Users, LogOut } from 'lucide-react';
 
 export default function Profile() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user: currentUser, setUserFromServer } = useAuth();
+  const { user: currentUser, setUserFromServer, logout } = useAuth();
+  const { alert, confirm } = useModal();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isMe = currentUser?.id === id;
@@ -119,7 +121,7 @@ export default function Profile() {
       setIsEditing(false);
       await loadProfile();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Lưu thất bại');
+      await alert(err instanceof Error ? err.message : 'Lưu thất bại', 'Lỗi', 'error');
     } finally {
       setLoading(false);
     }
@@ -147,16 +149,21 @@ export default function Profile() {
       const updated = await res.json();
       setUserFromServer(updated);
       await loadProfile();
-      alert('Thay đổi ảnh đại diện thành công!');
+      await alert('Thay đổi ảnh đại diện thành công!', 'Thành công', 'success');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Tải ảnh thất bại');
+      await alert(err instanceof Error ? err.message : 'Tải ảnh thất bại', 'Lỗi', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   const handleToggleFavorite = async () => {
-    if (!currentUser?.id || !profileUser || favBusy) return;
+    if (!currentUser?.id) {
+      await alert('Vui lòng đăng nhập để thực hiện tính năng này.', 'Yêu cầu đăng nhập', 'info');
+      navigate('/auth');
+      return;
+    }
+    if (!profileUser || favBusy) return;
     setFavBusy(true);
     try {
       const res = await toggleFavorite(profileUser.id, currentUser.id);
@@ -263,13 +270,13 @@ export default function Profile() {
             <Heart className={`h-4 w-4 ${isFavoritedByMe ? 'fill-red-500 text-red-500' : ''}`} />
           </button>
           <button
-            onClick={() => {
+            onClick={async () => {
               const text = `${profileUser.name} - Profile on SportMate`;
               if (navigator.share) {
                 navigator.share({ title: profileUser.name, text }).catch(() => {});
               } else {
                 navigator.clipboard.writeText(window.location.href);
-                alert('Đã sao chép liên kết cá nhân!');
+                await alert('Đã sao chép liên kết cá nhân!', 'Sao chép', 'success');
               }
             }}
             className="bg-[#121214] hover:bg-[#1a1a1c] border border-neutral-800 text-gray-400 hover:text-white p-2.5 rounded-full transition-colors cursor-pointer"
@@ -341,13 +348,28 @@ export default function Profile() {
         {/* Buttons / Actions */}
         <div className="flex flex-col gap-3 shrink-0 w-full sm:w-auto">
           {isMe ? (
-            <button
-              onClick={() => setIsEditing(!isEditing)}
-              className="flex items-center justify-center gap-2 bg-[#ff4d4f] hover:bg-red-600 px-6 py-3 rounded-2xl text-xs font-bold text-white transition-all duration-300 shadow-md w-full cursor-pointer"
-            >
-              {isEditing ? <Check className="h-4 w-4" /> : <Edit className="h-4 w-4" />}
-              {isEditing ? 'Đóng chỉnh sửa' : 'Chỉnh sửa hồ sơ'}
-            </button>
+            <>
+              <button
+                onClick={() => setIsEditing(!isEditing)}
+                className="flex items-center justify-center gap-2 bg-[#ff4d4f] hover:bg-red-600 px-6 py-3 rounded-2xl text-xs font-bold text-white transition-all duration-300 shadow-md w-full cursor-pointer"
+              >
+                {isEditing ? <Check className="h-4 w-4" /> : <Edit className="h-4 w-4" />}
+                {isEditing ? 'Đóng chỉnh sửa' : 'Chỉnh sửa hồ sơ'}
+              </button>
+              {!isEditing && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout();
+                    navigate('/auth');
+                  }}
+                  className="flex items-center justify-center gap-2 bg-[#121214] hover:bg-red-500/10 border border-neutral-800 hover:border-red-500/20 text-red-400 hover:text-red-300 px-6 py-3 rounded-2xl text-xs font-bold transition-all duration-300 w-full cursor-pointer"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Đăng xuất
+                </button>
+              )}
+            </>
           ) : (
             <>
               <button
@@ -558,13 +580,13 @@ export default function Profile() {
                               <span
                                 onClick={async () => {
                                   if (!currentUser) return;
-                                  if (window.confirm('Bạn có chắc chắn muốn hủy lịch đặt sân này không?')) {
+                                  if (await confirm('Bạn có chắc chắn muốn hủy lịch đặt sân này không?', 'Hủy đặt sân', 'warning')) {
                                     try {
                                       await cancelCourtBooking(b.id, currentUser.id);
-                                      alert('Đã hủy lịch đặt sân thành công.');
+                                      await alert('Đã hủy lịch đặt sân thành công.', 'Thành công', 'success');
                                       loadUserBookings();
                                     } catch (err) {
-                                      alert(err instanceof Error ? err.message : 'Hủy đặt sân thất bại');
+                                      await alert(err instanceof Error ? err.message : 'Hủy đặt sân thất bại', 'Lỗi', 'error');
                                     }
                                   }
                                 }}

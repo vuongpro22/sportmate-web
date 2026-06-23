@@ -77,6 +77,9 @@ type AuthContextValue = {
     latitude?: number;
     longitude?: number;
     userLocation?: string;
+    q?: string;
+    sport?: string;
+    level?: string;
   }) => Promise<{
     partners: SuggestedPartner[];
     total: number;
@@ -233,11 +236,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchSuggestedPartners: AuthContextValue["fetchSuggestedPartners"] =
     async ({
-      maxDistance = 10,
       limit = 20,
       latitude,
       longitude,
       userLocation,
+      q,
+      sport,
+      level,
     } = {}) => {
       try {
         const params = new URLSearchParams({
@@ -255,6 +260,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (userLocation) {
           params.append("currentLocation", userLocation);
+        }
+
+        if (q) {
+          params.append("q", q);
+        }
+
+        if (sport) {
+          params.append("sport", sport);
+        }
+
+        if (level) {
+          params.append("level", level);
         }
 
         const res = await fetch(

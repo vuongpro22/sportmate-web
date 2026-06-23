@@ -33,6 +33,7 @@ export type ApiCourt = {
   openTime: string;
   closeTime: string;
   slotMinutes: number;
+  timeSlotPrices?: { startTime: string; endTime: string; price: number }[];
   owner?: ApiCourtOwner | null;
   createdAt?: string;
   updatedAt?: string;
@@ -47,6 +48,7 @@ export type SaveCourtPayload = {
   amenities: string[];
   images: string[];
   contactPhone: string;
+  timeSlotPrices?: { startTime: string; endTime: string; price: number }[];
 };
 
 export type CourtImageAsset = {
@@ -61,6 +63,7 @@ export type CourtAvailabilitySlot = {
   startMinutes: number;
   endMinutes: number;
   available: boolean;
+  price?: number;
 };
 
 export type CourtAvailabilityResponse = {

@@ -62,7 +62,13 @@ export default function Matches() {
       setError(null);
       try {
         let list: ApiMatch[] = [];
-        if (tab === 'mine' && user?.id) {
+        if (tab === 'mine') {
+          if (!user?.id) {
+            setError('Vui lòng đăng nhập để xem trận đấu của bạn.');
+            setMatches([]);
+            setLoading(false);
+            return;
+          }
           list = await fetchMyMatches(user.id);
         } else {
           list = await fetchMatches();
@@ -120,10 +126,12 @@ export default function Matches() {
         if (!matchesLevel) return false;
       }
 
-      // 4. Past time filter
-      const displayStatus = computeDisplayStatus(m.status ?? 'active', m.date, m.time);
-      if (displayStatus.key === 'finished' || displayStatus.key === 'cancelled') {
-        return false;
+      // 4. Past time filter (Only apply for 'All Matches' tab, NOT 'My Matches' tab)
+      if (tab === 'all') {
+        const displayStatus = computeDisplayStatus(m.status ?? 'active', m.date, m.time);
+        if (displayStatus.key === 'finished' || displayStatus.key === 'cancelled') {
+          return false;
+        }
       }
 
       return true;

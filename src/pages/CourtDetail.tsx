@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useModal } from '@/contexts/ModalContext';
 import {
   createCourtBooking,
   fetchCourtAvailability,
@@ -10,7 +11,7 @@ import {
   type ApiCourt,
   type CourtAvailabilitySlot,
 } from '@/lib/courtApi';
-import { getUpcomingDateKeys, formatDateChip } from '@/lib/courtCalendar';
+import { getUpcomingDateKeys, formatDateChip, formatDateKey } from '@/lib/courtCalendar';
 import { getCourtSportLabel } from '@/constants/courtSports';
 import { ChevronLeft, MapPin, DollarSign, Clock, Phone, User, Settings, Calendar, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
 
@@ -20,6 +21,7 @@ export default function CourtDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { alert } = useModal();
 
   // Page States
   const [court, setCourt] = useState<ApiCourt | null>(null);
@@ -82,7 +84,12 @@ export default function CourtDetail() {
   }, [court, selectedDate, loadAvailability]);
 
   const handleBook = async () => {
-    if (!court || !selectedSlot || !user?.id) return;
+    if (!user?.id) {
+      await alert('Vui lòng đăng nhập để đặt sân.', 'Yêu cầu đăng nhập', 'info');
+      navigate('/auth');
+      return;
+    }
+    if (!court || !selectedSlot) return;
     setBookingBusy(true);
     setBookingNotice(null);
     try {
@@ -99,7 +106,7 @@ export default function CourtDetail() {
       setSelectedSlot(null);
       await loadAvailability();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Đặt lịch sân thất bại.');
+      await alert(err instanceof Error ? err.message : 'Đặt lịch sân thất bại.', 'Lỗi đặt sân', 'error');
     } finally {
       setBookingBusy(false);
     }
@@ -315,14 +322,21 @@ export default function CourtDetail() {
                 <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
                   {slots.map((slot) => {
                     const selected = selectedSlot?.startTime === slot.startTime;
-                    const available = slot.available;
+                    
+                    const now = new Date();
+                    const currentHour = now.getHours();
+                    const currentMinute = now.getMinutes();
+                    const [slotHour, slotMinute] = slot.startTime.split(':').map(Number);
+                    const isToday = selectedDate === formatDateKey(now);
+                    const isPast = isToday && (slotHour < currentHour || (slotHour === currentHour && slotMinute <= currentMinute));
+                    const available = slot.available && !isPast;
 
                     return (
                       <button
                         key={slot.startTime}
                         disabled={!available}
                         onClick={() => setSelectedSlot(slot)}
-                        className={`py-3.5 px-3 rounded-2xl text-xs font-bold border transition-all duration-300 text-center ${
+                        className={`py-2 px-3 rounded-2xl border transition-all duration-300 text-center flex flex-col items-center justify-center min-h-[56px] ${
                           selected
                             ? 'bg-primary border-primary text-white shadow-md'
                             : !available
@@ -330,7 +344,12 @@ export default function CourtDetail() {
                             : 'bg-darkBg border-darkBorder text-emerald-400 hover:border-emerald-500 hover:bg-emerald-500/5'
                         }`}
                       >
-                        {slot.startTime} - {slot.endTime}
+                        <span className="text-xs font-bold">{slot.startTime} - {slot.endTime}</span>
+                        {slot.price !== undefined && (
+                          <span className={`text-[10px] ${selected ? 'text-white/80' : 'text-gray-400'} font-medium mt-0.5`}>
+                            {formatCourtPrice(slot.price)}
+                          </span>
+                        )}
                       </button>
                     );
                   })}
@@ -347,7 +366,7 @@ export default function CourtDetail() {
               {bookingBusy ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
               ) : selectedSlot ? (
-                `Đặt sân: ${selectedSlot.startTime} - ${selectedSlot.endTime}`
+                `Đặt sân: ${selectedSlot.startTime} - ${selectedSlot.endTime} (${selectedSlot.price !== undefined ? formatCourtPrice(selectedSlot.price) : formatCourtPrice(court.pricePerHour)})`
               ) : (
                 'Chọn khung giờ để đặt sân'
               )}

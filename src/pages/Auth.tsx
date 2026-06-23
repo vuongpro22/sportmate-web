@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { KeyRound, Mail, User, Phone, Eye, EyeOff, Check, X } from 'lucide-react';
+import logoImg from '@/assets/logo.png';
 
 type Mode = 'login' | 'register' | 'forgot-password' | 'reset-password';
 
@@ -100,7 +101,8 @@ export default function Auth() {
 
       <div className="w-full max-w-md bg-darkCard border border-darkBorder rounded-3xl p-8 shadow-2xl relative z-10 backdrop-blur-md">
         {/* Brand Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 flex flex-col items-center gap-2">
+          <img src={logoImg} alt="SportMate" className="h-12 w-12 object-contain" />
           <span className="text-primary font-black tracking-widest text-2xl">SPORTMATE</span>
           <h2 className="mt-2 text-xl font-bold text-white">
             {mode === 'login' && 'Chào mừng trở lại'}

@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { SocketProvider } from '@/contexts/SocketContext';
+import { ModalProvider } from '@/contexts/ModalContext';
 import ProtectedRoutes from '@/components/ProtectedRoutes';
 import Layout from '@/components/Layout';
 
@@ -20,38 +21,45 @@ import Chats from '@/pages/Chats';
 import ChatRoom from '@/pages/ChatRoom';
 import Profile from '@/pages/Profile';
 import Admin from '@/pages/Admin';
+import Partners from '@/pages/Partners';
 
 export default function App() {
   return (
     <Router>
       <AuthProvider>
         <SocketProvider>
-          <Routes>
-            {/* Public route */}
-            <Route path="/auth" element={<Auth />} />
+          <ModalProvider>
+            <Routes>
+              {/* Public route */}
+              <Route path="/auth" element={<Auth />} />
 
-            {/* Protected routes */}
-            <Route element={<ProtectedRoutes />}>
+              {/* Layout-wrapped pages */}
               <Route element={<Layout />}>
+                {/* Public routes */}
                 <Route path="/" element={<Home />} />
                 <Route path="/matches" element={<Matches />} />
                 <Route path="/matches/:id" element={<MatchDetail />} />
-                <Route path="/matches/create" element={<CreateMatch />} />
                 <Route path="/courts" element={<Courts />} />
                 <Route path="/courts/:id" element={<CourtDetail />} />
-                <Route path="/courts/create" element={<CreateCourt />} />
-                <Route path="/courts/my-courts" element={<MyCourts />} />
                 <Route path="/ranking" element={<Ranking />} />
-                <Route path="/chats" element={<Chats />} />
-                <Route path="/chats/:id" element={<ChatRoom />} />
+                <Route path="/partners" element={<Partners />} />
                 <Route path="/profile/:id" element={<Profile />} />
-                <Route path="/admin" element={<Admin />} />
-              </Route>
-            </Route>
 
-            {/* Fallback route */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+                {/* Protected routes */}
+                <Route element={<ProtectedRoutes />}>
+                  <Route path="/matches/create" element={<CreateMatch />} />
+                  <Route path="/courts/create" element={<CreateCourt />} />
+                  <Route path="/courts/my-courts" element={<MyCourts />} />
+                  <Route path="/chats" element={<Chats />} />
+                  <Route path="/chats/:id" element={<ChatRoom />} />
+                  <Route path="/admin" element={<Admin />} />
+                </Route>
+              </Route>
+
+              {/* Fallback route */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </ModalProvider>
         </SocketProvider>
       </AuthProvider>
     </Router>
